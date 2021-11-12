@@ -55,10 +55,6 @@ CREATE ROLE sell PASSWORD '445566';
 ALTER ROLE sell WITH PASSWORD NULL;
 ALTER ROLE cust LOGIN;
 
--- 4
-ALTER TABLE accounts ALTER COLUMN currency TYPE TEXT;
-UPDATE accounts SET currency = 'USD', balance = balance * 1.2 WHERE currency = 'EUR';
-
 -- 5a
 CREATE UNIQUE INDEX index_account on accounts(customer_id, currency);
 
