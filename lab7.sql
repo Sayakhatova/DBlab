@@ -43,17 +43,34 @@ INSERT INTO transactions VALUES (3, '2021-06-05 18:02:45.000000', 'RS88012', 'NT
 -- Roles are created by users and used to group together privileges or other roles.
 
 -- 2a
-CREATE ROLE adm SUPERUSER;
-GRANT ALL PRIVILEGES ON  accounts, transactions to adm;
+CREATE ROLE administrator SUPERUSER;
+GRANT ALL PRIVILEGES ON customers TO administrator;
+CREATE ROLE support;
+GRANT ALL PRIVILEGES ON transactions TO support;
+CREATE ROLE accountant;
+GRANT ALL PRIVILEGES ON accounts TO accountant;
 
--- 2b-c
-CREATE ROLE cr CREATEROLE;
-CREATE ROLE cust LOGIN;
-CREATE ROLE sell PASSWORD '445566';
+-- 2b
+CREATE USER a1 WITH password '12356';
+GRANt accountant TO a1;
+CREATE USER a2 WITH password '44544';
+GRANT administrator TO a2;
+CREATE USER a3 WITH password '54544';
+GRANT support TO a3;
+
+-- 2c
+GRANT administrator TO accountant, support;
 
 -- 2d
-ALTER ROLE sell WITH PASSWORD NULL;
-ALTER ROLE cust LOGIN;
+REVOKE SELECT ON customers FROM administrator;
+REVOKE SELECT ON accounts FROM accountant;
+
+-- 3
+ALTER TABLE transactions
+ALTER COLUMN amount SET NOT NULL;
+
+ALTER TABLE transactions
+ALTER COLUMN date SET NOT NULL;
 
 -- 5a
 CREATE UNIQUE INDEX index_account on accounts(customer_id, currency);
@@ -62,25 +79,13 @@ CREATE UNIQUE INDEX index_account on accounts(customer_id, currency);
 CREATE INDEX index_transaction ON accounts(currency, balance);
 
 -- 6
-BEGIN ISOLATION LEVEL READ COMMITTED;
-CREATE VIEW init1 AS
-    SELECT transactions.id, transactions.src_account, transactions.amount, accounts.balance - transactions.amount AS src_p
-    FROM transactions, accounts WHERE transactions.status = 'init' and transactions.src_account = accounts.account_id;
-
-CREATE VIEW init2 AS
-    SELECT transactions.id, transactions.dst_account, accounts.balance + transactions.amount AS dst_p
-    FROM transactions, accounts WHERE transactions.dst_account = accounts.account_id;
-
-CREATE VIEW init3 AS
-    SELECT * FROM init1 INNER JOIN init2 USING(id);
+BEGIN;
 
 UPDATE accounts SET balance = balance + 500 WHERE account_id = 'RS88012';
 UPDATE accounts SET balance = balance - 500 WHERE account_id = 'NT10204';
 COMMIT;
 
-BEGIN;
-SELECT * FROM transactions WHERE status = 'rollback';
-UPDATE accounts SET balance = balance + 400 WHERE account_id = 'AB10203';
-UPDATE accounts SET balance = balance - 400 WHERE account_id = 'DK12000';
-ROLLBACK;
+IF balance < LIMIT WHERE account_id = 'RS88012' THEN ROLLBACK;
+ELSE COMMIT;
+
 COMMIT;
